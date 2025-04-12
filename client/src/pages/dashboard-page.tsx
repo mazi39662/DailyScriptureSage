@@ -85,7 +85,15 @@ export default function DashboardPage() {
     }
   };
   
-  if (!user) return null;
+  // Instead of returning null, provide a fallback UI
+  if (!user) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-secondary">
+        <h1 className="text-2xl font-bold mb-4">Loading Dashboard...</h1>
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
   
   return (
     <div className="min-h-screen flex flex-col bg-secondary">

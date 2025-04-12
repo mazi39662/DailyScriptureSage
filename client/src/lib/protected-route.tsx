@@ -2,13 +2,16 @@ import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
 import { Redirect, Route } from "wouter";
 
+// Define the props type
+interface ProtectedRouteProps {
+  path: string;
+  component: React.ComponentType; // This is a more flexible type for components
+}
+
 export function ProtectedRoute({
   path,
   component: Component,
-}: {
-  path: string;
-  component: () => React.JSX.Element;
-}) {
+}: ProtectedRouteProps) {
   let user = null;
   let isLoading = true;
   
@@ -38,5 +41,9 @@ export function ProtectedRoute({
     );
   }
 
-  return <Route path={path}><Component /></Route>;
+  return (
+    <Route path={path}>
+      <Component />
+    </Route>
+  );
 }

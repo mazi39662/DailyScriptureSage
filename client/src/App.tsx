@@ -1,33 +1,28 @@
+import { Switch, Route } from "wouter";
 import { Toaster } from "@/components/ui/toaster";
-import { useState, useEffect } from "react";
+import NotFound from "@/pages/not-found";
+import HomePage from "@/pages/home-page";
+import AuthPage from "@/pages/auth-page";
+import DashboardPage from "@/pages/dashboard-page";
+import { ProtectedRoute } from "./lib/protected-route";
 
-// Simplified version to debug
-function App() {
-  const [loaded, setLoaded] = useState(false);
-  
-  useEffect(() => {
-    // Just to confirm hooks are working
-    setLoaded(true);
-  }, []);
-  
+function Router() {
   return (
-    <div className="h-screen flex items-center justify-center bg-gray-100">
-      <div className="bg-white p-8 rounded-lg shadow-md">
-        <h1 className="text-2xl font-bold text-gray-800 mb-4">Daily Bible Verse</h1>
-        <p className="text-gray-600">
-          Simplified app for testing purposes
-        </p>
-        <div className="mt-4 p-4 bg-blue-50 rounded">
-          <p className="text-blue-800">
-            This is a test to check if the basic React rendering is working.
-          </p>
-          <p className="mt-2 text-green-600">
-            Component {loaded ? "has loaded" : "is loading"}...
-          </p>
-        </div>
-      </div>
+    <Switch>
+      <Route path="/" component={HomePage} />
+      <Route path="/auth" component={AuthPage} />
+      <ProtectedRoute path="/dashboard" component={DashboardPage} />
+      <Route path="/:rest*" component={NotFound} />
+    </Switch>
+  );
+}
+
+function App() {
+  return (
+    <>
+      <Router />
       <Toaster />
-    </div>
+    </>
   );
 }
 
