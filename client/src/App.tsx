@@ -1,28 +1,22 @@
-import { Switch, Route } from "wouter";
 import { Toaster } from "@/components/ui/toaster";
-import NotFound from "@/pages/not-found";
-import HomePage from "@/pages/home-page";
-import AuthPage from "@/pages/auth-page";
-import DashboardPage from "@/pages/dashboard-page";
-import { ProtectedRoute } from "./lib/protected-route";
 
-function Router() {
-  return (
-    <Switch>
-      <Route path="/" component={HomePage} />
-      <Route path="/auth" component={AuthPage} />
-      <ProtectedRoute path="/dashboard" component={DashboardPage} />
-      <Route path="/:rest*" component={NotFound} />
-    </Switch>
-  );
-}
-
+// Simplified version to debug
 function App() {
   return (
-    <>
-      <Router />
+    <div className="h-screen flex items-center justify-center bg-gray-100">
+      <div className="bg-white p-8 rounded-lg shadow-md">
+        <h1 className="text-2xl font-bold text-gray-800 mb-4">Daily Bible Verse</h1>
+        <p className="text-gray-600">
+          Simplified app for testing purposes
+        </p>
+        <div className="mt-4 p-4 bg-blue-50 rounded">
+          <p className="text-blue-800">
+            This is a test to check if the basic React rendering is working.
+          </p>
+        </div>
+      </div>
       <Toaster />
-    </>
+    </div>
   );
 }
 
