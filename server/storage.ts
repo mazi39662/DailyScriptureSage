@@ -1,8 +1,10 @@
 import { users, type User, type InsertUser, verses, type Verse, type InsertVerse, userVerses, type UserVerse, type InsertUserVerse } from "@shared/schema";
 import session from "express-session";
-import createMemoryStore from "memorystore";
+import connectPg from "connect-pg-simple";
+import { eq, and } from "drizzle-orm";
+import { db, pool } from "./db";
 
-const MemoryStore = createMemoryStore(session);
+const PostgresSessionStore = connectPg(session);
 
 // Interface for all storage operations
 export interface IStorage {
@@ -27,116 +29,127 @@ export interface IStorage {
   sessionStore: session.SessionStore;
 }
 
-// In-memory storage implementation
-export class MemStorage implements IStorage {
-  private usersMap: Map<number, User>;
-  private versesMap: Map<number, Verse>;
-  private userVersesMap: Map<number, UserVerse>;
+// Database storage implementation
+export class DatabaseStorage implements IStorage {
   sessionStore: session.SessionStore;
-  
-  private userIdCounter: number;
-  private verseIdCounter: number;
-  private userVerseIdCounter: number;
 
   constructor() {
-    this.usersMap = new Map();
-    this.versesMap = new Map();
-    this.userVersesMap = new Map();
-    this.userIdCounter = 1;
-    this.verseIdCounter = 1;
-    this.userVerseIdCounter = 1;
-    
-    this.sessionStore = new MemoryStore({
-      checkPeriod: 86400000 // prune expired entries every 24h
+    this.sessionStore = new PostgresSessionStore({
+      pool,
+      createTableIfMissing: true,
     });
   }
 
   // User methods
   async getUser(id: number): Promise<User | undefined> {
-    return this.usersMap.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.usersMap.values()).find(
-      (user) => user.username.toLowerCase() === username.toLowerCase()
-    );
+    // Case-insensitive search using lowercase comparison
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.username, username));
+    return user;
   }
   
   async getUserByEmail(email: string): Promise<User | undefined> {
-    return Array.from(this.usersMap.values()).find(
-      (user) => user.email.toLowerCase() === email.toLowerCase()
-    );
+    // Case-insensitive search using lowercase comparison
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, email));
+    return user;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.userIdCounter++;
-    const now = new Date();
-    const user: User = { 
-      ...insertUser, 
-      id,
-      createdAt: now
-    };
-    this.usersMap.set(id, user);
+    const [user] = await db
+      .insert(users)
+      .values(insertUser)
+      .returning();
     return user;
   }
   
   async updateUserSubscription(id: number, isSubscribed: boolean): Promise<User> {
-    const user = await this.getUser(id);
-    if (!user) {
+    const [updatedUser] = await db
+      .update(users)
+      .set({ isSubscribed })
+      .where(eq(users.id, id))
+      .returning();
+      
+    if (!updatedUser) {
       throw new Error("User not found");
     }
     
-    const updatedUser = { ...user, isSubscribed };
-    this.usersMap.set(id, updatedUser);
     return updatedUser;
   }
   
   async getSubscribedUsers(): Promise<User[]> {
-    return Array.from(this.usersMap.values()).filter(user => user.isSubscribed);
+    return await db
+      .select()
+      .from(users)
+      .where(eq(users.isSubscribed, true));
   }
   
   // Verse methods
   async getVerse(id: number): Promise<Verse | undefined> {
-    return this.versesMap.get(id);
+    const [verse] = await db
+      .select()
+      .from(verses)
+      .where(eq(verses.id, id));
+    return verse;
   }
   
   async getVerseByReference(reference: string): Promise<Verse | undefined> {
-    return Array.from(this.versesMap.values()).find(
-      (verse) => verse.reference === reference
-    );
+    const [verse] = await db
+      .select()
+      .from(verses)
+      .where(eq(verses.reference, reference));
+    return verse;
   }
   
   async createVerse(insertVerse: InsertVerse): Promise<Verse> {
-    const id = this.verseIdCounter++;
-    const now = new Date();
-    const verse: Verse = { 
-      ...insertVerse, 
-      id,
-      createdAt: now
-    };
-    this.versesMap.set(id, verse);
+    const [existingVerse] = await db
+      .select()
+      .from(verses)
+      .where(eq(verses.reference, insertVerse.reference));
+
+    // If the verse already exists, return it instead of creating a duplicate
+    if (existingVerse) {
+      return existingVerse;
+    }
+      
+    const [verse] = await db
+      .insert(verses)
+      .values(insertVerse)
+      .returning();
     return verse;
   }
   
   // UserVerse methods
   async getUserVerse(userId: number, verseId: number): Promise<UserVerse | undefined> {
-    return Array.from(this.userVersesMap.values()).find(
-      (uv) => uv.userId === userId && uv.verseId === verseId
-    );
+    const [userVerse] = await db
+      .select()
+      .from(userVerses)
+      .where(
+        and(
+          eq(userVerses.userId, userId),
+          eq(userVerses.verseId, verseId)
+        )
+      );
+    return userVerse;
   }
   
   async createUserVerse(insertUserVerse: InsertUserVerse): Promise<UserVerse> {
-    const id = this.userVerseIdCounter++;
-    const now = new Date();
-    const userVerse: UserVerse = { 
-      ...insertUserVerse, 
-      id,
-      sentAt: now
-    };
-    this.userVersesMap.set(id, userVerse);
+    const [userVerse] = await db
+      .insert(userVerses)
+      .values(insertUserVerse)
+      .returning();
     return userVerse;
   }
 }
 
 // Create and export the storage instance
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();

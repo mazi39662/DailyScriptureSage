@@ -1,6 +1,7 @@
-import { pgTable, text, serial, integer, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, foreignKey } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { relations } from "drizzle-orm";
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -12,13 +13,9 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
-  email: true,
-  fullName: true,
-  isSubscribed: true,
-});
+export const usersRelations = relations(users, ({ many }) => ({
+  userVerses: many(userVerses),
+}));
 
 export const verses = pgTable("verses", {
   id: serial("id").primaryKey(),
@@ -29,18 +26,41 @@ export const verses = pgTable("verses", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const versesRelations = relations(verses, ({ many }) => ({
+  userVerses: many(userVerses),
+}));
+
+export const userVerses = pgTable("user_verses", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  verseId: integer("verse_id").notNull().references(() => verses.id, { onDelete: 'cascade' }),
+  sentAt: timestamp("sent_at").defaultNow().notNull(),
+});
+
+export const userVersesRelations = relations(userVerses, ({ one }) => ({
+  user: one(users, {
+    fields: [userVerses.userId],
+    references: [users.id],
+  }),
+  verse: one(verses, {
+    fields: [userVerses.verseId],
+    references: [verses.id],
+  }),
+}));
+
+export const insertUserSchema = createInsertSchema(users).pick({
+  username: true,
+  password: true,
+  email: true,
+  fullName: true,
+  isSubscribed: true,
+});
+
 export const insertVerseSchema = createInsertSchema(verses).pick({
   text: true,
   reference: true,
   explanation: true,
   application: true,
-});
-
-export const userVerses = pgTable("user_verses", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull(),
-  verseId: integer("verse_id").notNull(),
-  sentAt: timestamp("sent_at").defaultNow().notNull(),
 });
 
 export const insertUserVerseSchema = createInsertSchema(userVerses).pick({
